@@ -1,7 +1,4 @@
 from ultralytics import YOLO
-import torch 
-from matplotlib import pyplot as plt
-import numpy as np 
 import cv2
 
 ##Load model
