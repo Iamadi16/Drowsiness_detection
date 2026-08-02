@@ -2,11 +2,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms , models
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader 
 
-# تغییر اندازه تصاویر
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+    transforms.Resize((224, 224)), #MobileNet accepts this size
     transforms.ToTensor(),
     transforms.Normalize(
         mean=[0.485, 0.456, 0.406],
@@ -14,7 +13,6 @@ transform = transforms.Compose([
     )
 ])
 
-# خواندن دیتاست
 train_dataset = datasets.ImageFolder(
     "dataset/train_data",
     transform=transform
@@ -30,22 +28,21 @@ test_dataset = datasets.ImageFolder(
     transform=transform
 )
 
-# ساخت DataLoader
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32)
 test_loader = DataLoader(test_dataset, batch_size=32)
 
-print("Classes:", train_dataset.classes)
-print("Train Images:", len(train_dataset))
-print("Validation Images:", len(val_dataset))
-print("Test Images:", len(test_dataset))
+# print("Classes:", train_dataset.classes)
+# print("Train Images:", len(train_dataset))
+# print("Validation Images:", len(val_dataset))
+# print("Test Images:", len(test_dataset))
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
+# print(device)
 
-model = models.mobilenet_v2(weights="DEFAULT")
+model = models.mobilenet_v2(weights="DEFAULT") #Default weights
 
-model.classifier[1] = nn.Linear(
+model.classifier[1] = nn.Linear( #classifier->which class the image belongs to
     model.last_channel,
     2
 )
@@ -60,6 +57,7 @@ optimizer = optim.Adam(
 )
 epochs = 3
 
+#train
 for epoch in range(epochs):
 
     model.train()
