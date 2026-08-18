@@ -28,13 +28,13 @@ def distance(points1 , points2):
         (x2 - x1) ** 2 + (y2 - y1) ** 2 
     )
 
-def calculate_EAR(eye_points):
-    p1 = eye_points[0]
-    p2 = eye_points[1]
-    p3 = eye_points[2]
-    p4 = eye_points[3]
-    p5 = eye_points[4]
-    p6 = eye_points[5]
+def calculate_MAR(mouth_points):
+    p1 = mouth_points[0]
+    p2 = mouth_points[1]
+    p3 = mouth_points[2]
+    p4 = mouth_points[3]
+    p5 = mouth_points[4]
+    p6 = mouth_points[5]
 
     vertical1 = distance(p2 , p6)
     vertical2 = distance(p3 , p5)
@@ -43,12 +43,12 @@ def calculate_EAR(eye_points):
     if horizontal == 0:
         return 0
     
-    EAR = (vertical1 + vertical2) / (2 * horizontal)
-    return EAR
+    MAR = (vertical1 + vertical2) / (2 * horizontal)
+    return MAR
 
-EAR_threshold = 0.15 
-closed_eye_time = None
-drowsy_eye_time = 1.5
+MAR_threshold = 0.55
+yawn_time = 1.5
+yawn_start_time = None
 
 cap = cv2.VideoCapture(0)
 
@@ -83,84 +83,60 @@ while cap.isOpened():
     if results.face_landmarks:
         for face_landmarks in results.face_landmarks:
             h, w, _ = frame.shape
-            left_eye = [362, 385, 387, 263, 373, 380]
-            right_eye = [33, 160, 158, 133, 153, 144]
+            mouth = [61, 13, 14, 291, 78, 308]
 
-            left_points = []
-            for index in left_eye:
-
-                landmark = face_landmarks[index]
-
-                x = int(landmark.x * w)
-                y = int(landmark.y * h)
-
-                left_points.append((x, y))
-
-            right_points = []
-            for index in right_eye:
+            mouth_points = []
+            for index in mouth:
 
                 landmark = face_landmarks[index]
 
                 x = int(landmark.x * w)
                 y = int(landmark.y * h)
 
-                right_points.append((x, y))
-
-            left_ear = calculate_EAR(left_points)
-            right_ear = calculate_EAR(right_points)
+                mouth_points.append((x, y))
+        
+            mar = calculate_MAR(mouth_points)
 
             current_time = time.time()
-
-            if left_ear < EAR_threshold and right_ear < EAR_threshold:
-                eye_status = "Closed"
-                if closed_eye_time is None:
-                    closed_eye_time = current_time
-                closed_duration = current_time - closed_eye_time 
+            if mar >= MAR_threshold:
+                if yawn_start_time is None:
+                    yawn_start_time = current_time
+                yawn_duration = current_time - yawn_start_time 
             else:
-                eye_status = "Open"
-                closed_eye_time = None
-                closed_duration = 0
+                yawn_start_time = None
+                yawn_duration = 0
 
-            if closed_duration >= drowsy_eye_time:
-                drowsy_by_eye = True
+            if yawn_duration >= yawn_time:
+                yawn_detect = True
             else:
-                drowsy_by_eye = False
+                yawn_detect = False
 
-            if drowsy_by_eye:
-                status = "drowsy"
+            if yawn_detect:
+                yawn_status = "YAWN"
             else:
-                status = "alert"
+                yawn_status = "NO YAWN"
 
             cv2.putText(
                 frame,
-                f"L: {left_ear:.2f}  R: {right_ear:.2f}",
+                f"MAR: {mar:.2f}{yawn_status}",
                 (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+            cv2.putText(
+                frame,
+                f"Yawn time: {yawn_duration:.2f}s",
+                (30, 90),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.8,
                 (0, 255, 0),
                 2
             )
-            cv2.putText(
-                frame,
-                f"Closed: {closed_duration:.2f}s",
-                (30, 90),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2
-            )
-            cv2.putText(
-                frame,
-                status,
-                (30, 130),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2
-            )
-
+     
     cv2.imshow(
-        "Eye Detection",
+        "yawn Detection",
         frame
     )
 
