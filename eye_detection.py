@@ -46,6 +46,10 @@ def calculate_EAR(eye_points):
     EAR = (vertical1 + vertical2) / (2 * horizontal)
     return EAR
 
+EAR_threshold = 0.25 
+closed_eye_time = None
+drowsy_eye_time = 1.5
+
 cap = cv2.VideoCapture(0)
 
 start_time = time.time()
@@ -106,11 +110,50 @@ while cap.isOpened():
             right_ear = calculate_EAR(right_points)
 
             ear = (left_ear + right_ear) / 2
+            current_time = time.time()
+
+            if ear < EAR_threshold:
+                eye_status = "Closed"
+                if closed_eye_time == None:
+                    closed_eye_time = current_time
+                closed_duration = current_time - closed_eye_time 
+            else:
+                eye_status = "Open"
+                closed_eye_time = None
+                closed_duration = 0
+
+            if closed_duration >= drowsy_eye_time:
+                drowsy_by_eye = True
+            else:
+                drowsy_by_eye = False
+
+            if drowsy_by_eye:
+                status = "drowsy"
+            else:
+                status = "alert"
 
             cv2.putText(
                 frame,
-                f"EAR: {ear:.2f}",
+                f"EAR: {ear:.2f} {eye_status}",
                 (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+            cv2.putText(
+                frame,
+                f"Closed: {closed_duration:.2f}s",
+                (30, 90),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+            cv2.putText(
+                frame,
+                status,
+                (30, 130),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 255, 0),
