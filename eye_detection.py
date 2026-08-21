@@ -48,7 +48,7 @@ def calculate_EAR(eye_points):
 
 EAR_threshold = 0.15 
 closed_eye_time = None
-drowsy_eye_time = 1.5
+eye_time = 1.5
 
 cap = cv2.VideoCapture(0)
 
@@ -121,7 +121,7 @@ while cap.isOpened():
                 closed_eye_time = None
                 closed_duration = 0
 
-            if closed_duration >= drowsy_eye_time:
+            if closed_duration >= eye_time:
                 drowsy_by_eye = True
             else:
                 drowsy_by_eye = False

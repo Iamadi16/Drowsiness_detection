@@ -57,7 +57,7 @@ while cap.isOpened():
             x:x+w
         ]
 
-        image = transform(frame)
+        image = transform(face)
         image = image.unsqueeze(0)
         image = image.to(device)
 

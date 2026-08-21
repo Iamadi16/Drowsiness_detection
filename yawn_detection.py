@@ -4,7 +4,7 @@ import time
 import math
 
 BaseOptions = mp.tasks.BaseOptions
-FaceLandMarker = mp.tasks.vision.FaceLandmarker #class
+FaceLandMarker = mp.tasks.vision.FaceLandmarker
 FaceLandMarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
@@ -47,7 +47,7 @@ def calculate_MAR(mouth_points):
     return MAR
 
 MAR_threshold = 0.55
-yawn_time = 1.5
+yawn_time = 1
 yawn_start_time = None
 
 cap = cv2.VideoCapture(0)
