@@ -3,7 +3,7 @@ import mediapipe as mp
 import numpy as np
 import time
 import math
-
+import pyttsx3
 
 ##Media-pipe-landmarker
 BaseOptions = mp.tasks.BaseOptions
@@ -68,6 +68,13 @@ def calculate_MAR(mouth_points):
     MAR = (vertical1 + vertical2) / (2 * horizontal)
     return MAR
 
+def speak(text):
+    engine = pyttsx3.init()
+    engine.setProperty("rate", 150)
+    engine.say(text)
+    engine.runAndWait()
+    engine.stop()
+
 ##Threshold-timer
 EAR_threshold = 0.15 
 closed_eye_time = None
@@ -76,6 +83,24 @@ eye_time = 1.5
 MAR_threshold = 0.55
 yawn_start_time = None
 yawn_time = 1
+
+head_down_time = None
+down_time = 2
+
+last_time_event = None
+
+last_voice_time = None
+voice_threshold = 20
+
+##Event-score
+yawn_score = 1
+eye_score = 2
+head_score = 2
+score = 0
+
+yawn_counted = False
+eye_counted = False
+head_counted = False
 
 ##Head-pose
 landmark_ids = {
@@ -172,8 +197,14 @@ while cap.isOpened():
 
         if closed_duration >= eye_time:
             drowsy_by_eye = True
+            
+            if not eye_counted:
+                score += eye_score
+                eye_counted = True
+                last_time_event = current_time
         else:
             drowsy_by_eye = False
+            eye_counted = False
 
         #yawn-detection
         mouth = [61, 13, 14, 291, 78, 308]
@@ -201,8 +232,14 @@ while cap.isOpened():
 
         if yawn_duration >= yawn_time:
             yawn_detect = True
+
+            if not yawn_counted:
+                score += yawn_score
+                yawn_counted = True
+                last_time_event = current_time
         else:
             yawn_detect = False
+            yawn_counted = False
 
         #head-pose
         image_points = []
@@ -216,12 +253,10 @@ while cap.isOpened():
 
             image_points.append((x, y))
 
-
         image_points = np.array(
             image_points,
             dtype=np.float64
         )
-
 
         focal_length = w
 
@@ -301,20 +336,29 @@ while cap.isOpened():
             if pitch < -10:
                 vertical_status = "HEAD DOWN"
 
-            elif pitch > 10:
+            elif pitch > 6:
                 vertical_status = "HEAD UP"
 
             else:
                 vertical_status = "HEAD NORMAL"
 
-            if yaw > 20:
-                horizontal_status = "RIGHT"
-
-            elif yaw < -20:
-                horizontal_status = "LEFT"
-
+            if vertical_status == "HEAD DOWN":
+                if head_down_time is None:
+                    head_down_time = current_time
+                down_duration = current_time - head_down_time 
             else:
-                horizontal_status = "CENTER"
+                head_down_time = None
+                down_duration = 0
+
+            if down_duration >= down_time:
+                drowsy_by_head = True
+                if not head_counted:
+                    score += head_score
+                    head_counted = True
+                    last_time_event = current_time
+            else:
+                drowsy_by_head = False
+                head_counted = False
 
         else:
             pitch = 0
@@ -322,96 +366,48 @@ while cap.isOpened():
             roll = 0
 
             vertical_status = "UNKNOWN"
-            horizontal_status = "UNKNOWN"
+
+        if last_time_event is not None:
+            if current_time - last_time_event >= 60:
+                score = 0
+                last_time_event = None
+
+        if score >= 9:
+            level = 3
+        elif score >= 6:
+            level = 2
+        elif score >= 3:
+            level = 1
+        else:
+            level = 0
+
+        #window
+        if level == 1:
+            cv2.putText(
+                frame,
+                f"Open the windows",
+                (30, 70),
+                cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+                0.65,
+                (0, 0, 255),
+                2
+            )
+
+        #voice
+        if level == 2:
+            current_time = time.time()
+            if last_voice_time is None or current_time - last_voice_time >= voice_threshold:
+                speak("you are drowsy.get some rest!")
+                last_voice_time = current_time
 
         #display
         cv2.putText(
             frame,
-            f"EAR L:{left_ear:.2f} R:{right_ear:.2f}",
-            (30, 40),
+            f"Score: {score}",
+            (30, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Eyes: {eye_status}",
-            (30, 70),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Eye closed: {closed_duration:.1f}s",
-            (30, 100),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"MAR: {mar:.2f}",
-            (30, 130),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Yawn: {'YES' if yawn_detect else 'NO'}",
-            (30, 160),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Pitch: {pitch:.1f}",
-            (30, 190),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Yaw: {yaw:.1f}",
-            (30, 220),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Vertical: {vertical_status}",
-            (30, 250),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
-            2
-        )
-
-        cv2.putText(
-            frame,
-            f"Horizontal: {horizontal_status}",
-            (30, 280),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            (0, 255, 0),
+            (255, 0, 0),
             2
         )
 
@@ -433,7 +429,6 @@ while cap.isOpened():
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
-
 
 cap.release()
 cv2.destroyAllWindows()
