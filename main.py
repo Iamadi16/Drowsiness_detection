@@ -4,6 +4,11 @@ import numpy as np
 import time
 import math
 import pyttsx3
+import serial
+
+##Arduino
+arduino = serial.Serial("COM3", 9600, timeout=1)
+time.sleep(2)
 
 ##Media-pipe-landmarker
 BaseOptions = mp.tasks.BaseOptions
@@ -32,13 +37,13 @@ def distance(points1 , points2):
         (x2 - x1) ** 2 + (y2 - y1) ** 2 
     )
 
-def calculate_EAR(eye_points):
-    p1 = eye_points[0]
-    p2 = eye_points[1]
-    p3 = eye_points[2]
-    p4 = eye_points[3]
-    p5 = eye_points[4]
-    p6 = eye_points[5]
+def calculate_Aspect_Ratio(points):
+    p1 = points[0]
+    p2 = points[1]
+    p3 = points[2]
+    p4 = points[3]
+    p5 = points[4]
+    p6 = points[5]
 
     vertical1 = distance(p2 , p6)
     vertical2 = distance(p3 , p5)
@@ -47,26 +52,8 @@ def calculate_EAR(eye_points):
     if horizontal == 0:
         return 0
     
-    EAR = (vertical1 + vertical2) / (2 * horizontal)
-    return EAR
-
-def calculate_MAR(mouth_points):
-    p1 = mouth_points[0]
-    p2 = mouth_points[1]
-    p3 = mouth_points[2]
-    p4 = mouth_points[3]
-    p5 = mouth_points[4]
-    p6 = mouth_points[5]
-
-    vertical1 = distance(p2 , p6)
-    vertical2 = distance(p3 , p5)
-    horizontal = distance(p1 , p4)
-
-    if horizontal == 0:
-        return 0
-    
-    MAR = (vertical1 + vertical2) / (2 * horizontal)
-    return MAR
+    aspectR = (vertical1 + vertical2) / (2 * horizontal)
+    return aspectR
 
 def speak(text):
     engine = pyttsx3.init()
@@ -74,6 +61,9 @@ def speak(text):
     engine.say(text)
     engine.runAndWait()
     engine.stop()
+
+def buzzer():
+    arduino.write(b"BUZZER\n")
 
 ##Threshold-timer
 EAR_threshold = 0.15 
@@ -91,6 +81,9 @@ last_time_event = None
 
 last_voice_time = None
 voice_threshold = 20
+
+last_buzzer_time = None
+buzzer_threshold = 20
 
 ##Event-score
 yawn_score = 1
@@ -180,8 +173,8 @@ while cap.isOpened():
 
             right_points.append((x, y))
 
-        left_ear = calculate_EAR(left_points)
-        right_ear = calculate_EAR(right_points)
+        left_ear = calculate_Aspect_Ratio(left_points)
+        right_ear = calculate_Aspect_Ratio(right_points)
 
         current_time = time.time()
 
@@ -219,7 +212,7 @@ while cap.isOpened():
 
             mouth_points.append((x, y))
         
-        mar = calculate_MAR(mouth_points)
+        mar = calculate_Aspect_Ratio(mouth_points)
 
         current_time = time.time()
         if mar >= MAR_threshold:
@@ -400,16 +393,32 @@ while cap.isOpened():
                 speak("you are drowsy.get some rest!")
                 last_voice_time = current_time
 
-        #display
+        #buzzer
+        if level == 3:
+            current_time = time.time()
+            if last_buzzer_time is None or current_time - last_buzzer_time >= buzzer_threshold:
+                buzzer()
+                last_buzzer_time = current_time
+
         cv2.putText(
             frame,
             f"Score: {score}",
             (30, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
             0.65,
             (255, 0, 0),
             2
         )
+
+        # cv2.putText(
+        #     frame,
+        #     f"Closed: {closed_duration:.2f}s",
+        #     (30, 90),
+        #     cv2.FONT_HERSHEY_SIMPLEX,
+        #     1,
+        #     (0, 255, 0),
+        #     2
+        # )
 
     else:
         cv2.putText(
@@ -432,5 +441,3 @@ while cap.isOpened():
 
 cap.release()
 cv2.destroyAllWindows()
-
-
